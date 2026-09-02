@@ -47,7 +47,7 @@ class BotTests(unittest.TestCase):
     def test_strictly_below_100(self):
         entry = {
             "title": "Mini PC Intel N100 8GB RAM 256GB SSD 100 €",
-            "description": "Equipo completo",
+            "description": "Equipo completo con Ethernet Gigabit",
         }
         self.assertTrue(bot.is_suitable_minipc(entry))
         self.assertEqual(bot.extract_price(entry), Decimal("100"))
@@ -60,13 +60,48 @@ class BotTests(unittest.TestCase):
         }
         specs = bot.detected_specs(entry)
         self.assertIn("N100", specs)
-        self.assertIn("16GB RAM", specs)
-        self.assertIn("512GB SSD", specs)
+        self.assertIn("16 GB RAM", specs)
+        self.assertIn("512 GB SSD", specs)
 
     def test_known_brand_without_literal_mini_pc(self):
         entry = {
             "title": "Beelink EQ12 Intel N100 16GB RAM 500GB SSD 95 €",
             "description": "Ordenador compacto con Ethernet",
+        }
+        self.assertTrue(bot.is_suitable_minipc(entry))
+
+    def test_rejects_less_than_8gb_ram(self):
+        entry = {
+            "title": "Mini PC Intel N100 4GB RAM 256GB SSD 69 €",
+            "description": "Ethernet Gigabit",
+        }
+        self.assertFalse(bot.is_suitable_minipc(entry))
+
+    def test_rejects_emmc_or_missing_ssd(self):
+        entry = {
+            "title": "Mini PC Intel N100 8GB RAM 128GB eMMC 79 €",
+            "description": "Ethernet Gigabit",
+        }
+        self.assertFalse(bot.is_suitable_minipc(entry))
+
+    def test_rejects_small_ssd(self):
+        entry = {
+            "title": "Mini PC Intel N100 8GB RAM 64GB SSD 59 €",
+            "description": "Ethernet Gigabit",
+        }
+        self.assertFalse(bot.is_suitable_minipc(entry))
+
+    def test_rejects_missing_ethernet(self):
+        entry = {
+            "title": "Mini PC Intel N100 8GB RAM 256GB SSD 89 €",
+            "description": "Wi-Fi 6 y Bluetooth",
+        }
+        self.assertFalse(bot.is_suitable_minipc(entry))
+
+    def test_accepts_compact_specs(self):
+        entry = {
+            "title": "GMKtec G3 N100 8GB+256GB SSD 94,99 €",
+            "description": "LAN Gigabit y Wi-Fi 6",
         }
         self.assertTrue(bot.is_suitable_minipc(entry))
 
