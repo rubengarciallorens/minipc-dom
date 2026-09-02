@@ -10,6 +10,9 @@ mini-PC x86 completo y razonable para Home Assistant por **menos de 100 €**.
   Ryzen 3/5/7 o Core i3/i5/i7.
 - Marcas habituales como Beelink, GMKtec, NiPoGi, Minisforum, Trigkey,
   Acemagic, Chuwi, Firebat, Bosgame, Geekom y similares.
+- Al menos 8 GB de RAM detectados en el título o la descripción.
+- SSD, NVMe o M.2 de al menos 128 GB; no se acepta eMMC.
+- Ethernet, LAN o RJ45 indicado explícitamente.
 - Precio detectado estrictamente inferior a 100 €.
 
 ## Qué excluye
@@ -19,6 +22,7 @@ mini-PC x86 completo y razonable para Home Assistant por **menos de 100 €**.
 - Accesorios, soportes, carcasas, cargadores y placas base.
 - Raspberry Pi, Orange Pi y Android/TV boxes.
 - Anuncios sin un precio reconocible.
+- Anuncios que no especifiquen RAM, SSD o conexión Ethernet.
 
 ## Instalación
 
