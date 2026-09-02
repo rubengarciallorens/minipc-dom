@@ -31,6 +31,12 @@ SAMPLE_RSS = b"""<?xml version="1.0" encoding="UTF-8"?>
       <guid>accessory-1</guid>
       <description>Accesorio VESA.</description>
     </item>
+    <item>
+      <title>Monitor LG UltraGear 27GX704A-B OLED por 549 EUR</title>
+      <link>https://www.chollometro.com/ofertas/lg-27gx704</link>
+      <guid>monitor-1</guid>
+      <description>Monitor gaming QHD de 240 Hz.</description>
+    </item>
   </channel>
 </rss>
 """
@@ -40,9 +46,11 @@ class BotTests(unittest.TestCase):
     def test_parse_and_filter(self):
         entries = bot.parse_feed(SAMPLE_RSS)
         matches = bot.matching_deals(entries)
-        self.assertEqual(len(entries), 4)
-        self.assertEqual(len(matches), 1)
+        self.assertEqual(len(entries), 5)
+        self.assertEqual(len(matches), 2)
         self.assertEqual(matches[0]["price"], Decimal("89.99"))
+        self.assertEqual(matches[1]["alert_type"], "monitor")
+        self.assertEqual(matches[1]["price"], Decimal("549"))
 
     def test_strictly_below_100(self):
         entry = {
@@ -104,6 +112,22 @@ class BotTests(unittest.TestCase):
             "description": "LAN Gigabit y Wi-Fi 6",
         }
         self.assertTrue(bot.is_suitable_minipc(entry))
+
+    def test_accepts_monitor_model_variants(self):
+        for model in ("27GX704", "27GX704A", "27GX704A-B", "27GX704AX-B"):
+            with self.subTest(model=model):
+                entry = {
+                    "title": f"Monitor OLED LG {model}",
+                    "description": "Oferta temporal",
+                }
+                self.assertTrue(bot.is_target_monitor(entry))
+
+    def test_rejects_other_lg_monitor(self):
+        entry = {
+            "title": "Monitor OLED LG 27GX705A-B",
+            "description": "Oferta temporal",
+        }
+        self.assertFalse(bot.is_target_monitor(entry))
 
 
 if __name__ == "__main__":

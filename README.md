@@ -1,7 +1,8 @@
-# Bot de mini-PC de Chollometro
+# Bot de Chollometro: mini-PC y LG 27GX704
 
 Vigila el RSS público de Chollometro y envía un Telegram cuando detecta un
-mini-PC x86 completo y razonable para Home Assistant por **menos de 100 €**.
+mini-PC x86 completo y razonable para Home Assistant por **menos de 100 €** o
+una oferta del monitor **LG 27GX704**.
 
 ## Qué acepta
 
@@ -24,6 +25,12 @@ mini-PC x86 completo y razonable para Home Assistant por **menos de 100 €**.
 - Anuncios sin un precio reconocible.
 - Anuncios que no especifiquen RAM, SSD o conexión Ethernet.
 
+## Monitor LG 27GX704
+
+- Avisa cuando el título o la descripción contienen `27GX704`.
+- Reconoce también variantes como `27GX704A`, `27GX704A-B` y `27GX704AX-B`.
+- No aplica límite de precio al monitor: cualquier oferta publicada genera aviso.
+
 ## Instalación
 
 1. Crea un repositorio nuevo en GitHub.
@@ -32,7 +39,7 @@ mini-PC x86 completo y razonable para Home Assistant por **menos de 100 €**.
 4. Crea estos dos secretos:
    - `TELEGRAM_TOKEN`
    - `TELEGRAM_CHAT_ID`
-5. Abre `Actions > Vigilar mini-PC en Chollometro` y pulsa `Run workflow`.
+5. Abre `Actions > Vigilar Chollometro` y pulsa `Run workflow`.
 
 En la primera ejecución el bot marca las ofertas actuales como vistas y envía
 el mensaje de activación. Después se ejecuta automáticamente a los minutos 7 y

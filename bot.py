@@ -106,6 +106,11 @@ PRICE_PATTERNS = (
     re.compile(r"(?:€|eur\b)\s*(\d{1,4}(?:[.,]\d{1,2})?)", re.I),
 )
 
+TARGET_MONITOR_PATTERN = re.compile(
+    r"\b27GX704(?:A|AX)?(?:-B)?(?:\.AEU)?\b",
+    re.I,
+)
+
 
 def fetch(url):
     request = urllib.request.Request(
@@ -233,6 +238,11 @@ def extract_price(entry):
         return description_prices[0]
 
     return None
+
+
+def is_target_monitor(entry):
+    text = f"{entry['title']} {entry['description']}"
+    return bool(TARGET_MONITOR_PATTERN.search(text))
 
 
 def first_match(text, patterns):
@@ -403,6 +413,12 @@ def save_state(state):
 def matching_deals(entries):
     matches = []
     for entry in entries:
+        if is_target_monitor(entry):
+            entry["alert_type"] = "monitor"
+            entry["price"] = extract_price(entry)
+            matches.append(entry)
+            continue
+
         issues = suitability_issues(entry)
         if issues:
             print(f"Descartado ({'; '.join(issues)}): {entry['title']}")
@@ -418,6 +434,7 @@ def matching_deals(entries):
             continue
 
         entry["price"] = price
+        entry["alert_type"] = "minipc"
         matches.append(entry)
 
     return matches
@@ -442,20 +459,34 @@ def main():
         telegram_send(
             "Vigilancia de Chollometro activada.\n\n"
             "Te avisaré de mini-PC para Home Assistant con al menos 8 GB de RAM, "
-            "SSD de 128 GB, Ethernet y precio inferior a 100 €."
+            "SSD de 128 GB, Ethernet y precio inferior a 100 €, y de cualquier "
+            "oferta del monitor LG 27GX704."
         )
         print(f"Inicializado con {len(entries)} entradas y {len(matches)} coincidencias actuales")
     else:
         new_matches = [entry for entry in matches if entry["id"] not in seen]
 
         for entry in reversed(new_matches):
-            message = (
-                "🔥 Mini-PC por menos de 100 €\n\n"
-                f"{entry['title']}\n\n"
-                f"💰 {format_price(entry['price'])}\n"
-                f"🖥️ {detected_specs(entry)}\n\n"
-                f"{entry['link']}"
-            )
+            if entry["alert_type"] == "monitor":
+                price_line = (
+                    f"\n\n💰 {format_price(entry['price'])}"
+                    if entry["price"] is not None
+                    else ""
+                )
+                message = (
+                    "🔥 Oferta del monitor LG 27GX704\n\n"
+                    f"{entry['title']}"
+                    f"{price_line}\n\n"
+                    f"{entry['link']}"
+                )
+            else:
+                message = (
+                    "🔥 Mini-PC por menos de 100 €\n\n"
+                    f"{entry['title']}\n\n"
+                    f"💰 {format_price(entry['price'])}\n"
+                    f"🖥️ {detected_specs(entry)}\n\n"
+                    f"{entry['link']}"
+                )
             telegram_send(message)
             state["seen"].append(entry["id"])
             seen.add(entry["id"])
@@ -463,12 +494,13 @@ def main():
             print(f"Enviado: {entry['title']}")
 
         if not new_matches:
-            print("Sin mini-PC nuevos por debajo de 100 €")
+            print("Sin mini-PC ni ofertas nuevas del LG 27GX704")
 
     if TEST_MODE:
         telegram_send(
             "Prueba correcta del bot de Chollometro.\n\n"
-            "Filtro activo: mini-PC para Home Assistant por menos de 100 €."
+            "Filtros activos: mini-PC para Home Assistant por menos de 100 € "
+            "y ofertas del monitor LG 27GX704."
         )
 
 
