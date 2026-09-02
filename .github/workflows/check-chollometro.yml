@@ -1,6 +1,13 @@
 name: Vigilar mini-PC en Chollometro
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - "bot.py"
+      - "test_bot.py"
+      - ".github/workflows/check-chollometro.yml"
   schedule:
     # Dos veces por hora, evitando el minuto 0 cuando Actions suele saturarse.
     - cron: "7,37 * * * *"
