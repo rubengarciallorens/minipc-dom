@@ -235,22 +235,6 @@ def extract_price(entry):
     return None
 
 
-def is_suitable_minipc(entry):
-    title = entry["title"].lower()
-    text = f"{entry['title']} {entry['description']}".lower()
-
-    if any(term in title for term in TITLE_EXCLUSIONS):
-        return False
-
-    has_form_factor = any(term in text for term in MINIPC_TERMS)
-    has_brand = any(term in text for term in KNOWN_BRANDS)
-    has_cpu = any(term in text for term in CPU_TERMS)
-
-    # También aceptamos títulos tipo "Beelink EQ12 N100", aunque no escriban
-    # literalmente "mini PC", si coinciden marca conocida y procesador válido.
-    return (has_form_factor and (has_cpu or has_brand)) or (has_brand and has_cpu)
-
-
 def first_match(text, patterns):
     for pattern in patterns:
         match = re.search(pattern, text, flags=re.I)
@@ -259,9 +243,9 @@ def first_match(text, patterns):
     return None
 
 
-def detected_specs(entry):
+def detected_cpu(entry):
     text = f"{entry['title']} {entry['description']}"
-    cpu = first_match(
+    return first_match(
         text,
         (
             r"Intel\s+(?:Processor\s+)?N(?:95|97|100|150|200|305)\b",
@@ -272,14 +256,102 @@ def detected_specs(entry):
             r"Core\s+i[357][ -][A-Z0-9-]+",
         ),
     )
-    ram = first_match(text, (r"\b(?:4|8|12|16|24|32)\s*GB\s+(?:DDR\d|RAM)\b",))
-    storage = first_match(
-        text,
-        (r"\b(?:64|128|256|512)\s*GB\s+(?:SSD|NVMe|eMMC)\b", r"\b1\s*TB\s+(?:SSD|NVMe)\b"),
+
+
+def extract_ram_gb(entry):
+    patterns = (
+        r"\b(\d{1,2})\s*GB\s*(?:DDR[345]?|LPDDR[45X]?|RAM)\b",
+        r"\b(?:DDR[345]?|LPDDR[45X]?|RAM)\s*(\d{1,2})\s*GB\b",
+        r"\b(\d{1,2})\s*GB\s*\+\s*\d{2,4}\s*GB\b",
+    )
+    for text in (entry["title"], entry["description"]):
+        for pattern in patterns:
+            match = re.search(pattern, text, flags=re.I)
+            if match:
+                return int(match.group(1))
+    return None
+
+
+def extract_ssd_gb(entry):
+    patterns = (
+        r"\b(\d{2,4})\s*GB\s*(?:SSD|NVMe|M\.2)\b",
+        r"\b(?:SSD|NVMe|M\.2)\s*(\d{2,4})\s*GB\b",
+        r"\b(\d{1,2})\s*TB\s*(?:SSD|NVMe|M\.2)\b",
+    )
+    for text in (entry["title"], entry["description"]):
+        for index, pattern in enumerate(patterns):
+            match = re.search(pattern, text, flags=re.I)
+            if match:
+                value = int(match.group(1))
+                return value * 1024 if index == 2 else value
+
+        combo = re.search(
+            r"\b\d{1,2}\s*GB\s*\+\s*(\d{2,4})\s*GB\b",
+            text,
+            flags=re.I,
+        )
+        if combo and re.search(r"\b(?:SSD|NVMe|M\.2)\b", text, flags=re.I):
+            return int(combo.group(1))
+    return None
+
+
+def has_ethernet(entry):
+    text = f"{entry['title']} {entry['description']}"
+    return bool(
+        re.search(
+            r"\b(?:Ethernet|Gigabit|LAN|RJ[- ]?45|2\.5G(?:bE)?)\b",
+            text,
+            flags=re.I,
+        )
     )
 
-    parts = [part for part in (cpu, ram, storage) if part]
-    return " · ".join(parts) if parts else "Revisa RAM, SSD y Ethernet en el anuncio"
+
+def suitability_issues(entry):
+    title = entry["title"].lower()
+    text = f"{entry['title']} {entry['description']}".lower()
+    issues = []
+
+    if any(term in title for term in TITLE_EXCLUSIONS):
+        issues.append("barebone, accesorio o configuración incompleta")
+
+    has_form_factor = any(term in text for term in MINIPC_TERMS)
+    has_brand = any(term in text for term in KNOWN_BRANDS)
+    cpu = detected_cpu(entry)
+
+    if not (has_form_factor or has_brand):
+        issues.append("no se identifica claramente como mini-PC")
+    if not cpu:
+        issues.append("procesador no identificado o no admitido")
+
+    ram_gb = extract_ram_gb(entry)
+    if ram_gb is None:
+        issues.append("RAM no especificada")
+    elif ram_gb < 8:
+        issues.append("menos de 8 GB de RAM")
+
+    ssd_gb = extract_ssd_gb(entry)
+    if ssd_gb is None:
+        issues.append("SSD/NVMe no especificado")
+    elif ssd_gb < 128:
+        issues.append("SSD inferior a 128 GB")
+
+    if not has_ethernet(entry):
+        issues.append("Ethernet/LAN no indicado")
+
+    return issues
+
+
+def is_suitable_minipc(entry):
+    return not suitability_issues(entry)
+
+
+
+def detected_specs(entry):
+    cpu = detected_cpu(entry)
+    ram_gb = extract_ram_gb(entry)
+    ssd_gb = extract_ssd_gb(entry)
+    storage = f"{ssd_gb // 1024} TB SSD" if ssd_gb and ssd_gb >= 1024 else f"{ssd_gb} GB SSD"
+    return " · ".join((cpu, f"{ram_gb} GB RAM", storage, "Ethernet"))
 
 
 def format_price(price):
@@ -331,7 +403,9 @@ def save_state(state):
 def matching_deals(entries):
     matches = []
     for entry in entries:
-        if not is_suitable_minipc(entry):
+        issues = suitability_issues(entry)
+        if issues:
+            print(f"Descartado ({'; '.join(issues)}): {entry['title']}")
             continue
 
         price = extract_price(entry)
@@ -367,8 +441,8 @@ def main():
         save_state(state)
         telegram_send(
             "Vigilancia de Chollometro activada.\n\n"
-            "Te avisaré de mini-PC completos y razonables para Home Assistant "
-            "cuando el precio detectado sea inferior a 100 €."
+            "Te avisaré de mini-PC para Home Assistant con al menos 8 GB de RAM, "
+            "SSD de 128 GB, Ethernet y precio inferior a 100 €."
         )
         print(f"Inicializado con {len(entries)} entradas y {len(matches)} coincidencias actuales")
     else:
