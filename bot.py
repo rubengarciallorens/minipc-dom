@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# El destino de Telegram se configura mediante secretos de GitHub Actions.
 
 import hashlib
 import html
